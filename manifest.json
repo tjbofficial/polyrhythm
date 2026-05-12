@@ -1,0 +1,25 @@
+{
+  "name": "Polyrhythm",
+  "short_name": "Polyrhythm",
+  "description": "A polyrhythm generator — set two time signatures and hear how they interact",
+  "start_url": "https://tjbofficial.github.io/polyrhythm/",
+  "scope": "https://tjbofficial.github.io/polyrhythm/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1D9E75",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

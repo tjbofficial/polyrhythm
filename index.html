@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Polyrhythm</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1D9E75">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js');
+    });
+  }
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #ffffff;
+    --surface:   #f5f5f3;
+    --border2:   rgba(0,0,0,0.25);
+    --text:      #1a1a1a;
+    --muted:     #888;
+    --teal:      #1D9E75;
+    --teal-mid:  #5DCAA5;
+    --teal-lt:   #9FE1CB;
+    --purple:    #7F77DD;
+    --purp-mid:  #AFA9EC;
+    --purp-lt:   #CECBF6;
+    --radius:    12px;
+    --radius-sm: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:      #1a1a1a;
+      --surface: #242424;
+      --border2: rgba(255,255,255,0.22);
+      --text:    #f0f0f0;
+      --muted:   #888;
+    }
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: clamp(20px,5vw,40px) clamp(16px,5vw,32px);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .top-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 10px;
+  }
+
+  .top-btn {
+    padding: clamp(12px,3.5vw,16px) 8px;
+    font-size: clamp(15px,4vw,17px);
+    font-weight: 500;
+    border-radius: var(--radius);
+    border: 1px solid var(--border2);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background 0.1s;
+  }
+  .top-btn:active    { background: var(--surface); }
+  #startBtn.on       { border-color: var(--teal); color: var(--teal); }
+  #tapBtn.flash      { background: var(--surface); }
+
+  .bpm-wrap { position: relative; }
+  #bpmInput {
+    width: 100%;
+    padding: clamp(12px,3.5vw,16px) 8px;
+    font-size: clamp(15px,4vw,17px);
+    font-weight: 500;
+    border-radius: var(--radius);
+    border: 1px solid var(--border2);
+    background: var(--bg);
+    color: var(--text);
+    text-align: center;
+    -moz-appearance: textfield;
+    touch-action: manipulation;
+  }
+  #bpmInput::-webkit-inner-spin-button,
+  #bpmInput::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .bpm-unit {
+    position: absolute;
+    right: 9px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .track-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px,2.5vw,14px);
+  }
+
+  .num-display {
+    font-size: clamp(52px,15vw,72px);
+    font-weight: 500;
+    line-height: 1;
+    text-align: center;
+    min-width: clamp(56px,16vw,80px);
+  }
+  #numA { color: var(--teal); }
+  #numB { color: var(--purple); }
+
+  .num-btn {
+    width: clamp(40px,11vw,52px);
+    height: clamp(40px,11vw,52px);
+    border-radius: 50%;
+    border: 1px solid var(--border2);
+    background: var(--bg);
+    font-size: clamp(18px,5.5vw,24px);
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    flex-shrink: 0;
+    transition: background 0.1s;
+  }
+  .num-btn:active { background: var(--surface); }
+
+  .div-btn {
+    width: clamp(40px,11vw,52px);
+    height: clamp(40px,11vw,52px);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border2);
+    background: var(--bg);
+    font-size: clamp(16px,5vw,21px);
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    flex-shrink: 0;
+    transition: background 0.1s;
+  }
+  .div-btn:active   { background: var(--surface); }
+  .div-btn:disabled { opacity: 0.22; cursor: default; }
+
+  .grid-wrap { width: 100%; }
+  #grid { display: block; width: 100%; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top-row">
+    <button class="top-btn" id="startBtn">
+      <svg id="startIcon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+      <span id="startLabel">Start</span>
+    </button>
+    <div class="bpm-wrap">
+      <input type="number" id="bpmInput" value="125" min="10" max="400" inputmode="numeric">
+      <span class="bpm-unit">bpm</span>
+    </div>
+    <button class="top-btn" id="tapBtn">Tap</button>
+  </div>
+
+  <div class="track-row">
+    <button class="div-btn" id="aDivHalf"   aria-label="halve A"></button>
+    <button class="num-btn" id="aDown"      aria-label="decrease A">−</button>
+    <span   class="num-display" id="numA">4</span>
+    <button class="num-btn" id="aUp"        aria-label="increase A">+</button>
+    <button class="div-btn" id="aDivDouble" aria-label="double A"></button>
+  </div>
+
+  <div class="grid-wrap">
+    <canvas id="grid"></canvas>
+  </div>
+
+  <div class="track-row">
+    <button class="num-btn" id="bDown" aria-label="decrease B">−</button>
+    <span   class="num-display" id="numB">3</span>
+    <button class="num-btn" id="bUp"   aria-label="increase B">+</button>
+  </div>
+
+</div>
+<script>
+  let beatsA = 4, beatsB = 3, divA = 0, bpm = 125;
+  let audioCtx   = null;
+  let isPlaying  = false;
+  let schedTimer = null;
+  let cycleStart = 0;
+  let activeA = -1, activeB = -1;
+  let flashQA = [], flashQB = [];
+
+  // All oscillator nodes created while playing, so we can kill them instantly
+  let liveNodes = [];
+
+  // Pending changes: set by controls while playing, applied at next cycle boundary
+  let pending = {};
+
+  const canvas = document.getElementById('grid');
+  const ctx    = canvas.getContext('2d');
+
+  function beatDurA() {
+    const quarter = 60 / bpm;
+    return quarter * Math.pow(2, -divA);
+  }
+  function cycleDur()  { return beatDurA() * beatsA; }
+  function beatDurB()  { return cycleDur() / beatsB; }
+
+  // SVG paths for each note type. Each is drawn in a 24x24 viewBox.
+  // Stem is on the right, notehead at bottom-left, flag(s) on the stem top.
+  const NOTE_SVGS = {
+    // Minim (half note): open oval head + stem
+    minim: `<svg width="20" height="22" viewBox="0 0 20 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="7" cy="17" rx="6" ry="4" transform="rotate(-15 7 17)" stroke="currentColor" stroke-width="1.8" fill="none"/>
+      <line x1="12.5" y1="15.5" x2="12.5" y2="2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>`,
+    // Crotchet (quarter note): filled oval head + stem
+    crotchet: `<svg width="20" height="22" viewBox="0 0 20 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="7" cy="17" rx="6" ry="4" transform="rotate(-15 7 17)" fill="currentColor"/>
+      <line x1="12.5" y1="15.5" x2="12.5" y2="2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>`,
+    // Quaver (eighth note): filled head + stem + one flag
+    quaver: `<svg width="20" height="22" viewBox="0 0 20 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="7" cy="17" rx="6" ry="4" transform="rotate(-15 7 17)" fill="currentColor"/>
+      <line x1="12.5" y1="15.5" x2="12.5" y2="2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M12.5 2 C16 4, 18 7, 14 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+    </svg>`,
+    // Semiquaver (sixteenth note): filled head + stem + two flags
+    semiquaver: `<svg width="20" height="22" viewBox="0 0 20 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="7" cy="17" rx="6" ry="4" transform="rotate(-15 7 17)" fill="currentColor"/>
+      <line x1="12.5" y1="15.5" x2="12.5" y2="2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M12.5 2 C16 4, 18 7, 14 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      <path d="M12.5 6 C16 8, 18 11, 14 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+    </svg>`
+  };
+
+  // divA: -1=minim, 0=crotchet (default), 1=quaver, 2=semiquaver
+  // ÷ button shows what pressing it will give you (one step slower)
+  // × button shows what pressing it will give you (one step faster)
+  // Greyed out via disabled when at limit
+  const SLOWER = ['minim', 'minim',    'crotchet', 'quaver' ];  // indexed by divA+1
+  const FASTER = ['crotchet', 'quaver', 'semiquaver', 'semiquaver']; // indexed by divA+1
+
+  function updateDivUI() {
+    const idx  = divA + 1; // 0–3
+    const half = document.getElementById('aDivHalf');
+    const dbl  = document.getElementById('aDivDouble');
+    half.innerHTML = NOTE_SVGS[SLOWER[idx]];
+    dbl.innerHTML  = NOTE_SVGS[FASTER[idx]];
+    half.disabled  = divA <= -1;
+    dbl.disabled   = divA >= 2;
+  }
+
+  // ── DRAW ──────────────────────────────────────────────────────────────────
+  function drawGrid() {
+    const W = canvas.offsetWidth;
+    if (!W) return;
+    const dpr = window.devicePixelRatio || 1;
+    // Increased aspect ratio from 0.38 → 0.52 for more breathing room
+    const H   = Math.round(W * 0.52);
+    canvas.width        = W * dpr;
+    canvas.height       = H * dpr;
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const lineY   = H / 2;
+    const padX    = 24;          // increased from 18 to prevent circle crop
+    const useW    = W - padX * 2;
+    const stemH   = H * 0.36;
+    const dotR    = Math.max(6, W * 0.018);
+    const accentR = dotR * 1.55;
+    const hitR    = dotR * 1.4;
+
+    ctx.strokeStyle = 'rgba(128,128,128,0.28)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(padX, lineY);
+    ctx.lineTo(W - padX, lineY);
+    ctx.stroke();
+
+    function drawRow(beats, above, activeIdx, baseCol, accentCol, hitCol) {
+      for (let i = 0; i < beats; i++) {
+        const x        = padX + (beats > 1 ? (i / (beats - 1)) * useW : useW / 2);
+        const isHit    = i === activeIdx;
+        const isAccent = i === 0;
+        const r        = isHit ? hitR : (isAccent ? accentR : dotR);
+        const stemEnd  = above ? lineY - stemH : lineY + stemH;
+        const dotY     = above ? stemEnd - r   : stemEnd + r;
+
+        ctx.strokeStyle = 'rgba(128,128,128,0.18)';
+        ctx.lineWidth   = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, lineY);
+        ctx.lineTo(x, stemEnd);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(x, dotY, r, 0, Math.PI * 2);
+        ctx.fillStyle = isHit ? hitCol : (isAccent ? accentCol : baseCol);
+        ctx.fill();
+      }
+    }
+
+    drawRow(beatsA, true,  activeA, '#9FE1CB', '#5DCAA5', '#1D9E75');
+    drawRow(beatsB, false, activeB, '#CECBF6', '#AFA9EC', '#7F77DD');
+  }
+
+  // ── AUDIO ─────────────────────────────────────────────────────────────────
+  function playClick(time, freq, gain) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g);
+    g.connect(audioCtx.destination);
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(gain, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+    o.start(time);
+    o.stop(time + 0.1);
+    // Track so we can stop them immediately on STOP
+    liveNodes.push(o);
+  }
+
+  function scheduleCycle(start) {
+    const dA = beatDurA();
+    const dB = cycleDur() / beatsB;
+
+    for (let i = 0; i < beatsA; i++) {
+      const t = start + i * dA;
+      playClick(t, 1200, i === 0 ? 0.55 : 0.28);
+      flashQA.push({ t, b: i });
+    }
+    for (let i = 0; i < beatsB; i++) {
+      const t = start + i * dB;
+      playClick(t, 480, i === 0 ? 0.42 : 0.20);
+      flashQB.push({ t, b: i });
+    }
+  }
+
+  // Apply any pending changes before scheduling the next cycle.
+  // This means every change waits for the current cycle to finish first.
+  function applyPending() {
+    let changed = false;
+    if ('bpm'    in pending) { bpm    = pending.bpm;    delete pending.bpm;    document.getElementById('bpmInput').value = bpm; changed = true; }
+    if ('beatsA' in pending) { beatsA = pending.beatsA; delete pending.beatsA; document.getElementById('numA').textContent = beatsA; changed = true; }
+    if ('beatsB' in pending) { beatsB = pending.beatsB; delete pending.beatsB; document.getElementById('numB').textContent = beatsB; changed = true; }
+    if ('divA'   in pending) { divA   = pending.divA;   delete pending.divA;   updateDivUI(); changed = true; }
+    if (changed) drawGrid();
+  }
+
+  function scheduleLoop() {
+    const now       = audioCtx.currentTime;
+    const lookahead = 0.3;
+    while (cycleStart < now + lookahead) {
+      applyPending();
+      scheduleCycle(cycleStart);
+      cycleStart += cycleDur();
+    }
+    schedTimer = setTimeout(scheduleLoop, 100);
+  }
+
+  // ── FLASH LOOP ────────────────────────────────────────────────────────────
+  function flashLoop() {
+    if (audioCtx && isPlaying) {
+      const now   = audioCtx.currentTime;
+      let changed = false;
+      while (flashQA.length && flashQA[0].t <= now) {
+        activeA = flashQA.shift().b;
+        changed = true;
+        setTimeout(() => { activeA = -1; drawGrid(); }, 100);
+      }
+      while (flashQB.length && flashQB[0].t <= now) {
+        activeB = flashQB.shift().b;
+        changed = true;
+        setTimeout(() => { activeB = -1; drawGrid(); }, 100);
+      }
+      if (changed) drawGrid();
+    }
+    requestAnimationFrame(flashLoop);
+  }
+
+  // ── TRANSPORT ─────────────────────────────────────────────────────────────
+  async function startPlay() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+    isPlaying  = true;
+    flashQA    = [];  flashQB    = [];
+    activeA    = -1;  activeB    = -1;
+    liveNodes  = [];
+    cycleStart = audioCtx.currentTime + 0.05;
+
+    scheduleLoop();
+
+    document.getElementById('startBtn').classList.add('on');
+    document.getElementById('startLabel').textContent = 'Stop';
+    document.getElementById('startIcon').innerHTML =
+      '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+  }
+
+  function stopPlay() {
+    isPlaying = false;
+    clearTimeout(schedTimer);
+
+    // Kill every scheduled oscillator immediately
+    const now = audioCtx ? audioCtx.currentTime : 0;
+    liveNodes.forEach(o => {
+      try { o.stop(now); } catch(e) {}
+    });
+    liveNodes = [];
+
+    flashQA = [];  flashQB = [];
+    activeA = -1;  activeB = -1;
+
+    document.getElementById('startBtn').classList.remove('on');
+    document.getElementById('startLabel').textContent = 'Start';
+    document.getElementById('startIcon').innerHTML =
+      '<polygon points="5 3 19 12 5 21 5 3"/>';
+    drawGrid();
+  }
+
+  // ── CONTROLS ──────────────────────────────────────────────────────────────
+  document.getElementById('startBtn').addEventListener('click', () => {
+    isPlaying ? stopPlay() : startPlay();
+  });
+
+  document.getElementById('bpmInput').addEventListener('change', e => {
+    let v = parseInt(e.target.value);
+    if (isNaN(v)) v = 125;
+    v = Math.max(10, Math.min(400, v));
+    e.target.value = v;
+    if (isPlaying) { pending.bpm = v; }
+    else           { bpm = v; }
+  });
+
+  let tapTimes = [];
+  document.getElementById('tapBtn').addEventListener('click', () => {
+    const now = performance.now();
+    tapTimes  = tapTimes.filter(t => now - t < 4000);
+    tapTimes.push(now);
+    if (tapTimes.length >= 4) {
+      const gaps = [];
+      for (let i = 1; i < tapTimes.length; i++) gaps.push(tapTimes[i] - tapTimes[i-1]);
+      const avg = gaps.reduce((a, b) => a + b) / gaps.length;
+      const v = Math.round(Math.max(10, Math.min(400, 60000 / avg)));
+      document.getElementById('bpmInput').value = v;
+      if (isPlaying) { pending.bpm = v; }
+      else           { bpm = v; }
+    }
+    const btn = document.getElementById('tapBtn');
+    btn.classList.add('flash');
+    setTimeout(() => btn.classList.remove('flash'), 80);
+  });
+
+  function setA(v) {
+    v = Math.max(2, Math.min(13, v));
+    // Update display immediately so user sees the queued value
+    document.getElementById('numA').textContent = v;
+    if (isPlaying) { pending.beatsA = v; }
+    else           { beatsA = v; drawGrid(); }
+  }
+
+  function setB(v) {
+    v = Math.max(2, Math.min(13, v));
+    document.getElementById('numB').textContent = v;
+    if (isPlaying) { pending.beatsB = v; }
+    else           { beatsB = v; drawGrid(); }
+  }
+
+  document.getElementById('aUp').addEventListener('click',    () => setA((pending.beatsA ?? beatsA) + 1));
+  document.getElementById('aDown').addEventListener('click',  () => setA((pending.beatsA ?? beatsA) - 1));
+  document.getElementById('bUp').addEventListener('click',    () => setB((pending.beatsB ?? beatsB) + 1));
+  document.getElementById('bDown').addEventListener('click',  () => setB((pending.beatsB ?? beatsB) - 1));
+
+  document.getElementById('aDivHalf').addEventListener('click', () => {
+    const next = (pending.divA ?? divA) - 1;
+    if (next >= -1) {
+      if (isPlaying) { pending.divA = next; }
+      else           { divA = next; }
+      // Update UI to show queued state immediately
+      const previewDiv = pending.divA ?? divA;
+      const idx = previewDiv + 1;
+      const half = document.getElementById('aDivHalf');
+      const dbl  = document.getElementById('aDivDouble');
+      half.innerHTML = NOTE_SVGS[SLOWER[idx]];
+      dbl.innerHTML  = NOTE_SVGS[FASTER[idx]];
+      half.disabled  = previewDiv <= -1;
+      dbl.disabled   = previewDiv >= 2;
+    }
+  });
+
+  document.getElementById('aDivDouble').addEventListener('click', () => {
+    const next = (pending.divA ?? divA) + 1;
+    if (next <= 2) {
+      if (isPlaying) { pending.divA = next; }
+      else           { divA = next; }
+      const previewDiv = pending.divA ?? divA;
+      const idx = previewDiv + 1;
+      const half = document.getElementById('aDivHalf');
+      const dbl  = document.getElementById('aDivDouble');
+      half.innerHTML = NOTE_SVGS[SLOWER[idx]];
+      dbl.innerHTML  = NOTE_SVGS[FASTER[idx]];
+      half.disabled  = previewDiv <= -1;
+      dbl.disabled   = previewDiv >= 2;
+    }
+  });
+
+  window.addEventListener('resize', drawGrid);
+  updateDivUI();
+  drawGrid();
+  requestAnimationFrame(flashLoop);
+</script>
+</body>
+</html>
