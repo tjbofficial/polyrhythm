@@ -210,6 +210,10 @@
 
   // ── DEFAULT VIEW ──────────────────────────────────────────────────────────
   function drawDefault() {
+    // Reset any styles set by the notation view
+    canvas.style.width     = '100%';
+    canvas.style.transform = 'none';
+    canvas.style.marginBottom = '0';
     const W = canvas.offsetWidth; if (!W) return;
     const dpr = window.devicePixelRatio || 1;
     const H   = Math.round(W * 0.52);
@@ -238,38 +242,6 @@
     }
     drawRow(beatsA,true, activeA,'#9FE1CB','#5DCAA5','#1D9E75');
     drawRow(beatsB,false,activeB,'#CECBF6','#AFA9EC','#7F77DD');
-
-    // ── ALIGNMENT LINES ───────────────────────────────────────────────────────
-    // Only at (iA, iB) pairs that are mathematically simultaneous: iA/beatsA === iB/beatsB
-    // i.e. iA * beatsB === iB * beatsA  (exact integer check, no float tolerance)
-    const isSyncNow = activeA !== -1 && activeB !== -1
-      && activeATime > 0 && activeBTime > 0
-      && Math.abs(activeATime - activeBTime) < 0.015;
-
-    // Default view x uses (i/(beats-1))*useW spacing — must match drawRow exactly
-    function defX(i, beats) {
-      return padX + (beats > 1 ? (i / (beats - 1)) * useW : useW / 2);
-    }
-
-    for (let iA = 0; iA < beatsA; iA++) {
-      for (let iB = 0; iB < beatsB; iB++) {
-        if (iA * beatsB !== iB * beatsA) continue; // not truly simultaneous
-        const x = defX(iA, beatsA); // A and B land at same x by definition when ratio matches
-        // y: bottom of A dot to top of B dot
-        const rA      = iA === activeA ? hitR : (iA === 0 ? accentR : dotR);
-        const rB      = iB === activeB ? hitR : (iB === 0 ? accentR : dotR);
-        const aDotY   = lineY - stemH - rA; // centre of A dot (above line)
-        const bDotY   = lineY + stemH + rB; // centre of B dot (below line)
-        const lineTop = aDotY + rA;         // bottom edge of A dot
-        const lineBot = bDotY - rB;         // top edge of B dot
-        const isSyncLine = isSyncNow && iA === activeA && iB === activeB;
-        ctx.strokeStyle = 'rgba(180,180,180,0.45)';
-        ctx.lineWidth   = isSyncLine ? 2.5 : 1;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath(); ctx.moveTo(x, lineTop); ctx.lineTo(x, lineBot); ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
   }
 
   // ── NOTATION VIEW ─────────────────────────────────────────────────────────
